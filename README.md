@@ -200,3 +200,5 @@ Tests cache invalidation and `findRow(rows)` without credentials. With `GOOGLE_S
 ## Deploy
 
 Push to GitHub → import on Vercel → set `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_SPREADSHEET_ID`.
+
+**Vercel Hobby limit:** max **12** Serverless Functions per deployment. Related routes are grouped into dynamic handlers (`api/users/[action].js`, `api/admin/[action].js`, `api/leaves/[action].js`) so the project deploys **9** functions total. API URLs are unchanged (`/api/admin/stats`, `/api/users/profile`, etc.).

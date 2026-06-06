@@ -1,11 +1,7 @@
-/**
- * GET /api/leaves/summary?userId=U001&fresh=1
- * Returns leave balance and usage for an employee.
- */
-import { readSheetsBatch, parseFresh } from "../_lib/sheets.js";
-import { countDaysBetween } from "../_lib/leaveDays.js";
+import { readSheetsBatch, parseFresh } from "../sheets.js";
+import { countDaysBetween } from "../leaveDays.js";
 
-export default async function handler(req, res) {
+export default async function handleLeaveSummary(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
@@ -48,7 +44,6 @@ export default async function handler(req, res) {
     });
 
     const remaining = Math.max(0, leavePool - approvedDaysUsed);
-
     const recentLeaves = [...userLeaves]
       .sort((a, b) => (b.fromDate || "").localeCompare(a.fromDate || ""))
       .slice(0, 5);

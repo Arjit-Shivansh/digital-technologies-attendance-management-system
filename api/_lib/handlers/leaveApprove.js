@@ -1,13 +1,7 @@
-/**
- * PATCH /api/leaves/approve
- * Approves or rejects a leave by leaveId.
- */
-import { readSheet, findRow, updateCell } from "../_lib/sheets.js";
+import { readSheet, findRow, updateCell } from "../sheets.js";
 
-export default async function handler(req, res) {
-  if (req.method !== "PATCH") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+export default async function handleLeaveApprove(req, res) {
+  if (req.method !== "PATCH") return res.status(405).json({ error: "Method not allowed" });
 
   try {
     const { leaveId, status } = req.body || {};
@@ -21,9 +15,7 @@ export default async function handler(req, res) {
 
     const rows = await readSheet("Leaves");
     const rowNum = await findRow("Leaves", 0, leaveId, rows);
-    if (!rowNum) {
-      return res.status(404).json({ error: "Leave not found" });
-    }
+    if (!rowNum) return res.status(404).json({ error: "Leave not found" });
 
     await updateCell("Leaves", `E${rowNum}`, [[status]]);
     return res.status(200).json({ leaveId, status });

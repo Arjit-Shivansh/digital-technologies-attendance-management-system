@@ -1,15 +1,11 @@
-/**
- * GET /api/users/profile?userId=&fresh=1
- * Returns current user fields from the Users sheet (for session refresh).
- */
-import { readSheet } from "../_lib/sheets.js";
-import { mapUserRow } from "../_lib/userFields.js";
+import { readSheet } from "../sheets.js";
+import { mapUserRow } from "../userFields.js";
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
 }
 
-export default async function handler(req, res) {
+export default async function handleUserProfile(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
     const { userId } = req.query;

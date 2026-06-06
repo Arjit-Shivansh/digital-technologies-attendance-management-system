@@ -1,15 +1,11 @@
-/**
- * GET /api/admin/stats?from=&to=&userId=&role=&managerId=&fresh=1
- * Returns aggregate or per-employee statistics for the admin dashboard.
- */
-import { readSheetsBatch } from "../_lib/sheets.js";
-import { isSundayOrHolidayPresentDay, getSundayHolidayPresentLabel } from "../_lib/leavePoolBonus.js";
+import { readSheetsBatch } from "../sheets.js";
+import { isSundayOrHolidayPresentDay, getSundayHolidayPresentLabel } from "../leavePoolBonus.js";
 import {
   resolveDateRange,
   countWorkingDaysInRange,
   countPresentOnWorkingDays,
   computeAttendanceRate,
-} from "../_lib/attendanceStats.js";
+} from "../attendanceStats.js";
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
@@ -121,16 +117,14 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handleAdminStats(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
     const { from, to, userId, role, managerId } = req.query;
     const today = new Date().toISOString().slice(0, 10);
     const fresh = isFresh(req.query) || Boolean(userId);
 
-    const batch = await readSheetsBatch(["Users", "Attendance", "Leaves", "Holidays"], {
-      fresh,
-    });
+    const batch = await readSheetsBatch(["Users", "Attendance", "Leaves", "Holidays"], { fresh });
 
     const allUsers = mapUsers(batch.Users || []);
     const attendance = batch.Attendance || [];

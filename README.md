@@ -73,6 +73,7 @@ All GET handlers accept `?fresh=1` (or `fresh=true`) to bypass the 15-second in-
 | `GET /api/admin/users` | `fresh` |
 | `GET /api/admin/stats` | `userId`, `role`, `managerId`, `from`, `to`, `fresh` |
 | `GET /api/subordinates` | `userId`, `fresh` |
+| `GET /api/users/profile` | `userId`, `fresh` — refresh session fields from Users sheet |
 | `PATCH /api/password` | Body: `email`, `currentPassword`, `newPassword` — updates Users sheet column **Password** |
 
 ### Login & password
@@ -103,6 +104,8 @@ Filters: `role`, `managerId`, `from`, `to` narrow the user set and date range.
 | **Admin** | Any **non-admin** employee (not self, not other admins) | **Any date** via date picker in Mark Present modal |
 | **Senior** | Direct reports (+ self if `CanMarkAttendance`) | **Today only** |
 | **Employee** | No access to Team Attendance | — |
+
+**Team Attendance** is hidden in the sidebar, mobile menu, and bottom nav when **CanMarkAttendance** is `FALSE` (Senior/Admin only; plain Employees never see this section). Calendar self-marking on a day also requires `CanMarkAttendance`. The app refreshes `CanMarkAttendance` from the Users sheet on load and when the browser tab becomes visible (`GET /api/users/profile?fresh=1`).
 
 `POST /api/attendance` enforces permissions server-side (`403` if not allowed). Sunday/holiday **+1 leave pool** applies for any date marked present, including admin backdates.
 

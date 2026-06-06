@@ -1,10 +1,11 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { canAccessTeamAttendance } from "../lib/userAccess";
 
 export default function BottomNav() {
   const { user } = useAuth();
   const isAdmin = user?.role === "Admin";
-  const isSenior = user?.role?.includes("Senior") || isAdmin;
+  const showTeamAttendance = canAccessTeamAttendance(user);
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">
@@ -13,7 +14,7 @@ export default function BottomNav() {
         <span className="bottom-nav-label">Calendar</span>
       </NavLink>
 
-      {isSenior && (
+      {showTeamAttendance && (
         <NavLink to="/team" className={({ isActive }) => (isActive ? "active" : "")}>
           <span className="bottom-nav-icon">👥</span>
           <span className="bottom-nav-label">Team</span>

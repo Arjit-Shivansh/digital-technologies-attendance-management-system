@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { canAccessTeamAttendance } from "../lib/userAccess";
 import { DashboardDataProvider, useDashboardData } from "../context/DashboardDataContext";
 import CalendarView from "../components/CalendarView";
 import AttendancePanel from "../components/AttendancePanel";
@@ -15,7 +16,7 @@ const MONTHS = [
 function MobileMenuDrawer({ open, onClose }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "Admin";
-  const isSenior = user?.role?.includes("Senior") || isAdmin;
+  const showTeamAttendance = canAccessTeamAttendance(user);
 
   const initials = (user?.name || "??")
     .split(" ")
@@ -50,7 +51,7 @@ function MobileMenuDrawer({ open, onClose }) {
             <span>Calendar</span>
           </NavLink>
 
-          {isSenior && (
+          {showTeamAttendance && (
             <NavLink to="/team" className={({ isActive }) => (isActive ? "active" : "")} onClick={handleNavClick}>
               <span className="nav-icon">👥</span>
               <span>Team Attendance</span>
@@ -120,7 +121,7 @@ function DashboardLayout() {
   const isTeamRoute = location.pathname === "/team";
   const isAdminRoute = location.pathname === "/admin";
   const isAdmin = user?.role === "Admin";
-  const isSenior = user?.role?.includes("Senior") || isAdmin;
+  const showTeamAttendance = canAccessTeamAttendance(user);
 
   const mobileTitle = isTeamRoute
     ? "Team Attendance"
@@ -149,7 +150,7 @@ function DashboardLayout() {
             <span>Calendar</span>
           </NavLink>
 
-          {isSenior && (
+          {showTeamAttendance && (
             <NavLink to="/team" className={({ isActive }) => (isActive ? "active" : "")}>
               <span className="nav-icon">👥</span>
               <span>Team Attendance</span>
@@ -188,7 +189,8 @@ function DashboardLayout() {
 
         <Routes>
           <Route path="/" element={<CalendarView />} />
-          {isSenior && <Route path="/team" element={<AttendancePanel />} />}
+          {showTeamAttendance && <Route path="/team" element={<AttendancePanel />} />}
+          {!showTeamAttendance && <Route path="/team" element={<Navigate to="/" replace />} />}
           {isAdmin && <Route path="/admin" element={<AdminDashboard />} />}
         </Routes>
 

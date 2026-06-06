@@ -2,13 +2,14 @@
  * Checks whether markedByUserId may mark attendance for targetUserId.
  */
 import { readSheet } from "./sheets.js";
+import { parseCanMarkAttendance } from "./userFields.js";
 
 function mapUsers(rows) {
   return rows.map((r) => ({
     userId: r[0],
     role: r[4],
     managerId: r[5] || null,
-    canMarkAttendance: String(r[7]).toUpperCase() === "TRUE",
+    canMarkAttendance: parseCanMarkAttendance(r[7]),
   }));
 }
 

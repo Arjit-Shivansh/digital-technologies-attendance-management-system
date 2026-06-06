@@ -2,7 +2,7 @@
  * PATCH /api/users/permission
  * Toggles CanMarkAttendance for a user (Admin only in production).
  */
-import { readSheet, findRow, updateCell } from "../_lib/sheets.js";
+import { readSheet, findRow, updateCell, invalidateSheet } from "../_lib/sheets.js";
 
 export default async function handler(req, res) {
   if (req.method !== "PATCH") return res.status(405).json({ error: "Method not allowed" });
@@ -16,6 +16,7 @@ export default async function handler(req, res) {
     if (rowNum === null) return res.status(404).json({ error: "User not found" });
 
     await updateCell("Users", `H${rowNum}`, [[flag]]);
+    invalidateSheet("Users");
 
     return res.status(200).json({ userId, canMarkAttendance: flag === "TRUE" });
   } catch (err) {

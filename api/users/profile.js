@@ -1,6 +1,6 @@
 /**
- * GET /api/admin/users?fresh=1
- * Returns all users for admin management.
+ * GET /api/users/profile?userId=&fresh=1
+ * Returns current user fields from the Users sheet (for session refresh).
  */
 import { readSheet } from "../_lib/sheets.js";
 import { mapUserRow } from "../_lib/userFields.js";
@@ -12,11 +12,16 @@ function isFresh(query) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: "userId query param required" });
+
     const rows = await readSheet("Users", { fresh: isFresh(req.query) });
-    const users = rows.map(mapUserRow);
-    return res.status(200).json(users);
+    const row = rows.find((r) => r[0] === userId);
+    if (!row) return res.status(404).json({ error: "User not found" });
+
+    return res.status(200).json(mapUserRow(row));
   } catch (err) {
-    console.error("Admin users error:", err);
+    console.error("User profile error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

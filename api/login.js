@@ -3,6 +3,7 @@
  * Authenticates user by matching email + password against the "Users" sheet.
  */
 import { readSheet } from "./_lib/sheets.js";
+import { mapUserRow } from "./_lib/userFields.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -22,17 +23,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const user = {
-      userId: userRow[0],
-      name: userRow[1],
-      email: userRow[2],
-      role: userRow[4],
-      managerId: userRow[5] || null,
-      leavePool: parseInt(userRow[6], 10) || 0,
-      canMarkAttendance: String(userRow[7]).toUpperCase() === "TRUE",
-    };
-
-    return res.status(200).json(user);
+    return res.status(200).json(mapUserRow(userRow));
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({ error: "Internal server error" });

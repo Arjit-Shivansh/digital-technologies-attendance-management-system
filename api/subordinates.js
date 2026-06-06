@@ -3,6 +3,7 @@
  * Returns users whose ManagerID matches the requesting user's UserID.
  */
 import { readSheet } from "./_lib/sheets.js";
+import { mapUserRow } from "./_lib/userFields.js";
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
@@ -15,15 +16,7 @@ export default async function handler(req, res) {
     if (!userId) return res.status(400).json({ error: "userId query param required" });
 
     const rows = await readSheet("Users", { fresh: isFresh(req.query) });
-    const allUsers = rows.map((r) => ({
-      userId: r[0],
-      name: r[1],
-      email: r[2],
-      role: r[4],
-      managerId: r[5] || null,
-      leavePool: parseInt(r[6], 10) || 0,
-      canMarkAttendance: String(r[7]).toUpperCase() === "TRUE",
-    }));
+    const allUsers = rows.map(mapUserRow);
 
     const currentUser = allUsers.find((u) => u.userId === userId);
     if (!currentUser) return res.status(404).json({ error: "User not found" });

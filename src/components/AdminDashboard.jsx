@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
 import {
   AnalyticsStatsSkeleton,
   AccessTabSkeleton,
@@ -266,6 +267,7 @@ function AnalyticsTab() {
 }
 
 function UsersTab() {
+  const { user, updateUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState("");
@@ -290,20 +292,25 @@ function UsersTab() {
   }, []);
 
   const toggleAttendancePermission = async (targetUserId, currentValue) => {
+    const nextValue = !currentValue;
     try {
-      await fetch("/api/users/permission", {
+      const res = await fetch("/api/users/permission", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: targetUserId, canMarkAttendance: !currentValue }),
+        body: JSON.stringify({ userId: targetUserId, canMarkAttendance: nextValue }),
       });
+      if (!res.ok) return;
+
       setUsers((prev) =>
         prev.map((u) => {
           const id = u.userId || u.UserID;
-          return id === targetUserId
-            ? { ...u, canMarkAttendance: !currentValue }
-            : u;
+          return id === targetUserId ? { ...u, canMarkAttendance: nextValue } : u;
         })
       );
+
+      if (user?.userId === targetUserId) {
+        updateUser({ canMarkAttendance: nextValue });
+      }
     } catch (err) {
       console.error("Toggle error:", err);
     }

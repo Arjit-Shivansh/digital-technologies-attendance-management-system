@@ -15,7 +15,12 @@ cp .env.example .env
 npm run dev
 ```
 
-Opens at `http://localhost:3000` (Vite proxies `/api` to the Vercel dev server on port 4000 when using `vercel dev`).
+Opens at `http://localhost:3000` (Vite + `/api` via Vercel dev on port 4000).
+
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Local development |
+| `npm run build` | Production build (used by Vercel deploy) |
 
 ### Sheet tabs (header row required)
 
@@ -79,7 +84,9 @@ All GET handlers accept `?fresh=1` (or `fresh=true`) to bypass the 15-second in-
 
 - **Org view** (no `userId`): `totalUsers`, `periodAttendance`, `pendingLeaves`
 - **Employee view** (`userId` set): adds `selectedEmployee` and `employeeStats`:
-  - `presentDays`, `approvedLeaveDays`, `pendingLeaves`, `leavePool`, `leavePoolRemaining`, `sundayHolidayPresentDays`, `sundayHolidayPresentLog`, `attendanceRate`
+  - `presentDays`, `approvedLeaveDays`, `pendingLeaves`, `leavePool`, `leavePoolRemaining`, `sundayHolidayPresentDays`, `sundayHolidayPresentLog`, `attendanceRate`, `statsPeriod`, `attendanceRateMeta`
+  - `attendanceRate` — `weekday present days ÷ working days` from **April 1** of the active Apr–Mar cycle through today (weekends & company holidays excluded from the denominator; Sunday/holiday present tracked separately)
+  - `statsPeriod` — `{ from, to, isDefault, cycleLabel }`; defaults to **Apr 1 → today** within the current Apr–Mar cycle when `from`/`to` are omitted
   - `sundayHolidayPresentLog`: table rows `{ date, type, label, reason, markedBy }` — **Holiday** type when Sunday and holiday overlap
   - Per-employee queries bypass sheet cache so **Leave Pool** reflects Sunday/holiday +1 bonuses immediately
 

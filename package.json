@@ -4,13 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ws-polyfill.cjs && vercel dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:smoke": "node scripts/smoke-test.mjs",
-    "vercel:build": "vercel build",
-    "start": "vercel dev",
-    "prod": "npm ci && npm run build && vercel build && vercel dev"
+    "dev": "node dev/dev-full.mjs",
+    "build": "vite build"
   },
   "dependencies": {
     "googleapis": "^144.0.0",

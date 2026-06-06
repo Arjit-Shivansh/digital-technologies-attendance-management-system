@@ -178,8 +178,14 @@ function AnalyticsTab() {
             <div className="stat-card">
               <span className="stat-label">Attendance Rate</span>
               <span className="stat-value">{stats.employeeStats.attendanceRate}%</span>
-              <span className="stat-sub stat-sub-spacer" aria-hidden="true">
-                &nbsp;
+              <span className="stat-sub">
+                {stats.employeeStats.statsPeriod
+                  ? `${stats.employeeStats.statsPeriod.from} → ${stats.employeeStats.statsPeriod.to}${
+                      stats.employeeStats.statsPeriod.cycleLabel
+                        ? ` (${stats.employeeStats.statsPeriod.cycleLabel})`
+                        : ""
+                    } · present ÷ working days`
+                  : "present days ÷ working days (Apr–Mar cycle)"}
               </span>
             </div>
           </div>

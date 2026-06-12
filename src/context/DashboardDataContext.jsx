@@ -18,6 +18,7 @@ export function DashboardDataProvider({ children }) {
   const [holidays, setHolidays] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = useCallback(
@@ -26,6 +27,7 @@ export function DashboardDataProvider({ children }) {
       setLoading(true);
       const { from, to } = getMonthRange(year, month);
       const freshSuffix = fresh ? "&fresh=1" : "";
+      const freshQuery = fresh ? "?fresh=1" : "";
       const isAdmin = user.role === "Admin";
 
       try {
@@ -35,21 +37,35 @@ export function DashboardDataProvider({ children }) {
               .then((r) => r.json())
               .catch(() => []);
 
-        const [h, l, a] = await Promise.all([
-          fetch(`/api/holidays${fresh ? "?fresh=1" : ""}`)
+        const attendanceUrl = isAdmin
+          ? `/api/attendance?from=${from}&to=${to}${freshSuffix}`
+          : `/api/attendance?userId=${encodeURIComponent(user.userId)}&from=${from}&to=${to}${freshSuffix}`;
+
+        const usersPromise = isAdmin
+          ? fetch(`/api/admin/users${freshQuery}`)
+              .then((r) => r.json())
+              .catch(() => [])
+          : Promise.resolve([]);
+
+        const [h, l, a, u] = await Promise.all([
+          fetch(`/api/holidays${freshQuery}`)
             .then((r) => r.json())
             .catch(() => []),
           leavePromise,
-          fetch(
-            `/api/attendance?userId=${encodeURIComponent(user.userId)}&from=${from}&to=${to}${freshSuffix}`
-          )
+          fetch(attendanceUrl)
             .then((r) => r.json())
             .catch(() => []),
+          usersPromise,
         ]);
 
         setHolidays(Array.isArray(h) ? h : []);
         setLeaves(Array.isArray(l) ? l : []);
         setAttendance(Array.isArray(a) ? a : []);
+        setEmployees(
+          isAdmin && Array.isArray(u)
+            ? u.filter((e) => e.role !== "Admin" && e.name)
+            : []
+        );
       } finally {
         setLoading(false);
       }
@@ -102,6 +118,7 @@ export function DashboardDataProvider({ children }) {
     holidays,
     leaves,
     attendance,
+    employees,
     loading,
     refetch: fetchDashboardData,
     addAttendanceRecord,

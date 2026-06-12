@@ -7,13 +7,21 @@ export function parseCanMarkAttendance(value) {
 }
 
 export function mapUserRow(row) {
+  const baseLeavePool = parseInt(row[6], 10) || 0;
+  const leaveApprovedDays = parseInt(row[7], 10) || 0;
+  const leavePendingDays = parseInt(row[8], 10) || 0;
+  const sundayHolidayPresent = parseInt(row[9], 10) || 0;
   return {
     userId: row[0],
     name: row[1],
     email: row[2],
     role: row[4],
     managerId: row[5] || null,
-    leavePool: parseInt(row[6], 10) || 0,
-    canMarkAttendance: parseCanMarkAttendance(row[7]),
+    leavePool: baseLeavePool + sundayHolidayPresent,
+    baseLeavePool,
+    leaveApprovedDays,
+    leavePendingDays,
+    sundayHolidayPresent,
+    canMarkAttendance: parseCanMarkAttendance(row[10]),
   };
 }

@@ -34,15 +34,26 @@ export default function LeaveInfoPanel({ refreshKey = 0 }) {
     fetchSummary(false);
   }, [fetchSummary, refreshKey]);
 
+  useEffect(() => {
+    const handler = () => fetchSummary(true);
+    window.addEventListener("leave-summary-refresh", handler);
+    return () => window.removeEventListener("leave-summary-refresh", handler);
+  }, [fetchSummary]);
+
   const pool = summary?.leavePool ?? user?.leavePool ?? 0;
+  const basePool = summary?.baseLeavePool;
+  const sundayBonus = summary?.sundayHolidayPresent ?? 0;
   const used = summary?.approvedDaysUsed ?? 0;
   const remaining = summary?.remaining ?? Math.max(0, pool - used);
-  const pending = summary?.pendingCount ?? 0;
   const pendingDays = summary?.pendingDays ?? 0;
+  const pendingCount = summary?.pendingCount ?? 0;
+  const poolSubtitle =
+    basePool != null && sundayBonus > 0
+      ? `${basePool} base + ${sundayBonus} Sunday/holiday`
+      : null;
   const bonusNote =
     summary?.leavePoolBonusNote ||
-    summary?.sundayBonusNote ||
-    "Marking present on Sunday or a company holiday adds +1 day to your leave pool.";
+    "Each Sunday/holiday present adds +1 to your leave pool total.";
 
   return (
     <div className="leave-info-panel card">
@@ -68,6 +79,11 @@ export default function LeaveInfoPanel({ refreshKey = 0 }) {
         <div className="leave-info-stat">
           <span className="leave-info-stat-value">{pool}</span>
           <span className="leave-info-stat-label">Leave pool</span>
+          {poolSubtitle && (
+            <span className="leave-info-stat-sub" style={{ fontSize: "0.7rem", opacity: 0.85 }}>
+              {poolSubtitle}
+            </span>
+          )}
         </div>
         <div className="leave-info-stat">
           <span className="leave-info-stat-value">{used}</span>
@@ -78,7 +94,7 @@ export default function LeaveInfoPanel({ refreshKey = 0 }) {
           <span className="leave-info-stat-label">Remaining</span>
         </div>
         <div className="leave-info-stat">
-          <span className="leave-info-stat-value">{pending}</span>
+          <span className="leave-info-stat-value">{pendingCount}</span>
           <span className="leave-info-stat-label">Pending ({pendingDays}d)</span>
         </div>
       </div>

@@ -94,6 +94,7 @@ function AnalyticsTab() {
     fetchStats(false);
   }, [fetchStats]);
 
+  const nonAdminEmployees = users.filter((u) => (u.role || u.Role) !== "Admin");
   const uniqueRoles = [...new Set(users.map((u) => u.role || u.Role).filter(Boolean))];
   const uniqueManagers = [...new Set(users.map((u) => u.managerId || u.ManagerID || "").filter(Boolean))];
   const employeeView = Boolean(debouncedUserId && stats?.employeeStats);
@@ -103,7 +104,7 @@ function AnalyticsTab() {
       <div className="filter-bar admin-analytics-filters">
         <select value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)}>
           <option value="">All Employees</option>
-          {users.map((u) => {
+          {nonAdminEmployees.map((u) => {
             const id = u.userId || u.UserID;
             return (
               <option key={id} value={id}>
@@ -174,7 +175,7 @@ function AnalyticsTab() {
             <div className="stat-card">
               <span className="stat-label">Sunday & Holiday Present</span>
               <span className="stat-value">{stats.employeeStats.sundayHolidayPresentDays ?? stats.employeeStats.weekendPresentDays ?? 0}</span>
-              <span className="stat-sub">each earns +1 leave pool day</span>
+              <span className="stat-sub">each adds +1 to effective leave pool (col J)</span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Attendance Rate</span>
@@ -194,8 +195,7 @@ function AnalyticsTab() {
           <div className="card analytics-detail-card">
             <div className="card-header">Sunday & Holiday Present Days</div>
             <p className="analytics-detail-note">
-              Each row earned +1 leave pool. If a date is both Sunday and a company holiday, it is listed as{" "}
-              <strong>Holiday</strong>.
+              Each row earned +1 toward Sunday/holiday present (effective pool = base + J).
             </p>
             {(stats.employeeStats.sundayHolidayPresentLog || []).length === 0 ? (
               <div className="empty-state" style={{ padding: "24px 16px" }}>
@@ -242,7 +242,7 @@ function AnalyticsTab() {
       ) : (
         <div className="stats-grid">
           <div className="stat-card">
-            <span className="stat-label">Total Employees</span>
+            <span className="stat-label">Employee Total</span>
             <span className="stat-value">{stats?.totalUsers || 0}</span>
             <span className="stat-sub stat-sub-spacer" aria-hidden="true">
               &nbsp;
@@ -272,6 +272,7 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState("");
   const [filterManager, setFilterManager] = useState("");
+  const [resetting, setResetting] = useState(false);
   const loaded = useRef(false);
 
   const fetchUsers = (fresh = false) => {
@@ -316,6 +317,32 @@ function UsersTab() {
     }
   };
 
+  const resetLeaveCycle = async () => {
+    if (
+      !window.confirm(
+        "Reset Apr–Mar leave cycle for all non-admin users? Sets LeavePool (G)=22 and clears Approved (H), Pending (I), and Sun/Holiday (J)."
+      )
+    ) {
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/reset-cycle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pool: 22 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Reset failed");
+      alert(`Cycle reset complete for ${data.resetCount ?? 0} users.`);
+      fetchUsers(true);
+    } catch (err) {
+      alert(err.message || "Cycle reset failed");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (loading) return <AccessTabSkeleton />;
 
   const filteredUsers = users.filter((u) => {
@@ -347,6 +374,14 @@ function UsersTab() {
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => fetchUsers(true)}>
           ↻ Refresh
         </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={resetLeaveCycle}
+          disabled={resetting}
+        >
+          {resetting ? "Resetting…" : "Reset Apr–Mar cycle"}
+        </button>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -357,14 +392,17 @@ function UsersTab() {
               <th>Email</th>
               <th>Role</th>
               <th>Manager</th>
-              <th>Leave Pool</th>
+              <th>Leave Pool (G+J)</th>
+              <th>Approved (H)</th>
+              <th>Pending (I)</th>
+              <th>Sun/Hol (J)</th>
               <th>Can Mark Attendance</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={9}>
                   <div className="empty-state"><p>No users match filters.</p></div>
                 </td>
               </tr>
@@ -382,7 +420,10 @@ function UsersTab() {
                     </span>
                   </td>
                   <td>{u.managerId || u.ManagerID || "—"}</td>
-                  <td>{u.leavePool || u.LeavePool || 0}</td>
+                  <td>{u.leavePool ?? u.LeavePool ?? 0}</td>
+                  <td>{u.leaveApprovedDays ?? 0}</td>
+                  <td>{u.leavePendingDays ?? 0}</td>
+                  <td>{u.sundayHolidayPresent ?? 0}</td>
                   <td>
                     <label className="toggle-switch">
                       <input

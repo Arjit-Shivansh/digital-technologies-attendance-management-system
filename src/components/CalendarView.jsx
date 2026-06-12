@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useDashboardData } from "../context/DashboardDataContext";
+import { buildPresentByDate } from "../lib/employeeAvatar";
 import LeaveModal from "./LeaveModal";
 import LeaveInfoPanel from "./LeaveInfoPanel";
+import CalendarPresentAvatars from "./CalendarPresentAvatars";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -48,10 +50,20 @@ export default function CalendarView() {
     holidays,
     leaves,
     attendance,
+    employees,
     loading,
     refetch,
     addLeaveRecord,
   } = useDashboardData();
+
+  useEffect(() => {
+    refetch(true);
+  }, []); // fresh fetch when calendar mounts (e.g. after Team Attendance marks)
+
+  const presentByDate = useMemo(
+    () => (isAdmin ? buildPresentByDate(attendance, employees) : null),
+    [isAdmin, attendance, employees]
+  );
 
   const today = new Date();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -157,9 +169,11 @@ export default function CalendarView() {
             const weekendClass = weekend ? "weekend-cell" : "";
             const holiday = holidayMap[cell.date];
             const leave = leaveMap[cell.date];
-            const present = cell.date && attendanceSet.has(cell.date);
-            const presentClass = present ? "present-day" : "";
-            const hasEvents = holiday || leave || present;
+            const dayAvatars = isAdmin && cell.date ? presentByDate.get(cell.date) : null;
+            const present = !isAdmin && cell.date && attendanceSet.has(cell.date);
+            const hasPresentAvatars = Boolean(dayAvatars?.length);
+            const presentClass = present || hasPresentAvatars ? "present-day" : "";
+            const hasEvents = holiday || leave || present || hasPresentAvatars;
 
             return (
               <div
@@ -174,16 +188,27 @@ export default function CalendarView() {
                   {leave && (
                     <span className="event-chip leave calendar-chip-desktop">{leave}</span>
                   )}
-                  {present && (
+                  {isAdmin ? (
                     <>
-                      <span className="event-chip present calendar-chip-desktop">Present</span>
-                      <span className="calendar-dot present-dot calendar-dot-mobile" />
+                      {hasPresentAvatars && <CalendarPresentAvatars avatars={dayAvatars} />}
+                      {holiday && !hasPresentAvatars && (
+                        <span className="calendar-dot holiday-dot calendar-dot-mobile" />
+                      )}
                     </>
-                  )}
-                  {!present && hasEvents && (
-                    <span
-                      className={`calendar-dot ${holiday ? "holiday-dot" : "leave-dot"} calendar-dot-mobile`}
-                    />
+                  ) : (
+                    <>
+                      {present && (
+                        <>
+                          <span className="event-chip present calendar-chip-desktop">Present</span>
+                          <span className="calendar-dot present-dot calendar-dot-mobile" />
+                        </>
+                      )}
+                      {!present && hasEvents && (
+                        <span
+                          className={`calendar-dot ${holiday ? "holiday-dot" : "leave-dot"} calendar-dot-mobile`}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>

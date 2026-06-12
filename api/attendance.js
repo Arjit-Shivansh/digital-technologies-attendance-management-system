@@ -8,9 +8,14 @@
  *   from / to             date range (inclusive)
  *   fresh=1               bypass sheet cache
  */
-import { readSheet, readSheetsBatch, appendRow, incrementLeavePool } from "./_lib/sheets.js";
+import { readSheet, readSheetsBatch, appendRow } from "./_lib/sheets.js";
 import { canMarkAttendanceFor, isValidDateString } from "./_lib/attendanceAuth.js";
 import { getLeavePoolBonus } from "./_lib/leavePoolBonus.js";
+import {
+  adjustUserStats,
+  computeEffectiveLeavePool,
+  computeRemainingLeave,
+} from "./_lib/userSheetStats.js";
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
@@ -97,13 +102,23 @@ export default async function handler(req, res) {
       ]);
 
       let leavePoolBonus = 0;
-      let leavePool = null;
       let leavePoolBonusReason = null;
+      let sundayHolidayPresent = null;
+      let leavePool = null;
+      let leaveRemaining = null;
+
       const { bonus, reason: poolBonusReason } = getLeavePoolBonus(date, holidayRows);
-      if (bonus > 0) {
+      if (bonus > 0 && resolvedStatus === "Present") {
         leavePoolBonus = bonus;
         leavePoolBonusReason = poolBonusReason;
-        leavePool = await incrementLeavePool(targetUserId, bonus);
+        const stats = await adjustUserStats(targetUserId, { sundayDelta: bonus });
+        sundayHolidayPresent = stats.sundayHolidayPresent;
+        leavePool = computeEffectiveLeavePool(stats.baseLeavePool, stats.sundayHolidayPresent);
+        leaveRemaining = computeRemainingLeave(
+          stats.baseLeavePool,
+          stats.sundayHolidayPresent,
+          stats.leaveApprovedDays
+        );
       }
 
       return res.status(201).json({
@@ -115,7 +130,9 @@ export default async function handler(req, res) {
         reason: resolvedReason,
         leavePoolBonus,
         leavePoolBonusReason,
+        ...(sundayHolidayPresent !== null ? { sundayHolidayPresent } : {}),
         ...(leavePool !== null ? { leavePool } : {}),
+        ...(leaveRemaining !== null ? { leaveRemaining } : {}),
       });
     }
 

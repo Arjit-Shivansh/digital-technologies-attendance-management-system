@@ -7,7 +7,8 @@
  *   fresh=1        bypass sheet cache
  */
 import { readSheet, appendRow } from "./_lib/sheets.js";
-import { validateLeaveDateRange } from "./_lib/leaveDays.js";
+import { validateLeaveDateRange, countDaysBetween } from "./_lib/leaveDays.js";
+import { adjustUserStats } from "./_lib/userSheetStats.js";
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
@@ -58,6 +59,10 @@ export default async function handler(req, res) {
 
       const leaveId = `L${Date.now()}`;
       await appendRow("Leaves", [leaveId, userId, fromDate, toDate, "Pending", reason || ""]);
+
+      const days = countDaysBetween(fromDate, toDate);
+      await adjustUserStats(userId, { pendingDelta: days });
+
       return res.status(201).json({ leaveId, userId, fromDate, toDate, status: "Pending", reason: reason || "" });
     }
 

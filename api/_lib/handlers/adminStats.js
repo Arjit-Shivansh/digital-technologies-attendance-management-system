@@ -1,6 +1,11 @@
 import { readSheetsBatch } from "../sheets.js";
 import { isSundayOrHolidayPresentDay, getSundayHolidayPresentLabel } from "../leavePoolBonus.js";
 import {
+  parseUserStatCells,
+  computeEffectiveLeavePool,
+  computeRemainingLeave,
+} from "../userSheetStats.js";
+import {
   resolveDateRange,
   countWorkingDaysInRange,
   countPresentOnWorkingDays,
@@ -11,29 +16,21 @@ function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
 }
 
-function countLeaveDaysInRange(fromDate, toDate, rangeFrom, rangeTo) {
-  const start = fromDate > rangeFrom ? fromDate : rangeFrom;
-  const end = toDate < rangeTo ? toDate : rangeTo;
-  if (start > end) return 0;
-
-  let days = 0;
-  const cur = new Date(`${start}T12:00:00`);
-  const endDate = new Date(`${end}T12:00:00`);
-  while (cur <= endDate) {
-    days += 1;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
-
 function mapUsers(rows) {
-  return rows.map((r) => ({
-    userId: r[0],
-    name: r[1],
-    role: r[4],
-    managerId: r[5] || null,
-    leavePool: parseInt(r[6], 10) || 0,
-  }));
+  return rows.map((r) => {
+    const stats = parseUserStatCells(r);
+    return {
+      userId: r[0],
+      name: r[1],
+      role: r[4],
+      managerId: r[5] || null,
+      baseLeavePool: stats.baseLeavePool,
+      leaveApprovedDays: stats.leaveApprovedDays,
+      leavePendingDays: stats.leavePendingDays,
+      sundayHolidayPresent: stats.sundayHolidayPresent,
+      leavePool: computeEffectiveLeavePool(stats.baseLeavePool, stats.sundayHolidayPresent),
+    };
+  });
 }
 
 function filterUsers(users, { userId, role, managerId }) {
@@ -59,9 +56,6 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
   });
 
   const presentDays = userAttendance.length;
-  const sundayHolidayPresentDays = userAttendance.filter((a) =>
-    isSundayOrHolidayPresentDay(a[2] || "", holidayRows)
-  ).length;
 
   const sundayHolidayPresentLog = userAttendance
     .filter((a) => isSundayOrHolidayPresentDay(a[2] || "", holidayRows))
@@ -81,17 +75,12 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
   const userLeaves = leaves.filter((l) => l[1] === uid);
   const pendingLeaves = userLeaves.filter((l) => (l[4] || "").toLowerCase() === "pending").length;
 
-  let approvedLeaveDays = 0;
-  userLeaves.forEach((l) => {
-    if ((l[4] || "").toLowerCase() !== "approved") return;
-    approvedLeaveDays += countLeaveDaysInRange(l[2] || "", l[3] || "", effFrom, effTo);
-  });
-
-  let totalApprovedDays = 0;
-  userLeaves.forEach((l) => {
-    if ((l[4] || "").toLowerCase() !== "approved") return;
-    totalApprovedDays += countLeaveDaysInRange(l[2] || "", l[3] || "", "1970-01-01", "2099-12-31");
-  });
+  const effectivePool = user.leavePool;
+  const leavePoolRemaining = computeRemainingLeave(
+    user.baseLeavePool,
+    user.sundayHolidayPresent,
+    user.leaveApprovedDays
+  );
 
   const workingDays = countWorkingDaysInRange(effFrom, effTo, holidayRows);
   const weekdayPresentDays = countPresentOnWorkingDays(attendance, uid, effFrom, effTo, holidayRows);
@@ -102,11 +91,13 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
 
   return {
     presentDays,
-    approvedLeaveDays,
+    approvedLeaveDays: user.leaveApprovedDays,
     pendingLeaves,
-    leavePool: user.leavePool,
-    leavePoolRemaining: Math.max(0, user.leavePool - totalApprovedDays),
-    sundayHolidayPresentDays,
+    leavePendingDays: user.leavePendingDays,
+    leavePool: effectivePool,
+    baseLeavePool: user.baseLeavePool,
+    leavePoolRemaining,
+    sundayHolidayPresentDays: user.sundayHolidayPresent,
     sundayHolidayPresentLog,
     attendanceRate,
     statsPeriod: { from: effFrom, to: effTo, isDefault, cycleLabel },
@@ -153,7 +144,7 @@ export default async function handleAdminStats(req, res) {
     }).length;
 
     const response = {
-      totalUsers: scopedUsers.length,
+      totalUsers: scopedUsers.filter((u) => u.role !== "Admin").length,
       todayAttendance: periodAttendance,
       periodAttendance,
       pendingLeaves,

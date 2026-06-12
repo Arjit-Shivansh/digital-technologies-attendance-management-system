@@ -11,7 +11,7 @@ export default async function handleUserPermission(req, res) {
     const rowNum = await findRow("Users", 0, userId, rows);
     if (rowNum === null) return res.status(404).json({ error: "User not found" });
 
-    await updateCell("Users", `H${rowNum}`, [[flag]]);
+    await updateCell("Users", `K${rowNum}`, [[flag]]);
     invalidateSheet("Users");
 
     return res.status(200).json({ userId, canMarkAttendance: flag === "TRUE" });

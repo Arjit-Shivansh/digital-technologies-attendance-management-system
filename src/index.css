@@ -709,6 +709,45 @@ textarea.form-input {
   gap: 2px;
 }
 
+.calendar-present-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.present-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.present-avatar-overflow {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-secondary);
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .calendar-dot {
   display: none;
   width: 6px;
@@ -1751,6 +1790,20 @@ textarea.form-input {
   .calendar-cell {
     min-height: 52px;
     padding: 4px 2px;
+  }
+
+  .present-avatar {
+    width: 16px;
+    height: 16px;
+    font-size: 0.55rem;
+  }
+
+  .present-avatar-hidden-mobile {
+    display: none;
+  }
+
+  .present-avatar-overflow {
+    display: inline-flex;
   }
 
   .calendar-header-bar {

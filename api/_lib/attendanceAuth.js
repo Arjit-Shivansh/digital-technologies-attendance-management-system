@@ -9,7 +9,7 @@ function mapUsers(rows) {
     userId: r[0],
     role: r[4],
     managerId: r[5] || null,
-    canMarkAttendance: parseCanMarkAttendance(r[7]),
+    canMarkAttendance: parseCanMarkAttendance(r[10]),
   }));
 }
 

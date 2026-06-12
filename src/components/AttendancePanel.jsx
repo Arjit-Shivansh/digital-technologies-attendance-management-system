@@ -42,11 +42,14 @@ export default function AttendancePanel() {
       if (data.leavePoolBonus > 0) {
         const bonusLabel =
           data.leavePoolBonusReason === "holiday" ? "company holiday" : "Sunday work";
+        const poolNote =
+          data.leavePool != null ? ` Effective leave pool: ${data.leavePool} days.` : "";
         setBonusMessage(
-          `${targetUserId === user.userId ? "You earned" : "Employee earned"} +${data.leavePoolBonus} leave day for ${bonusLabel} on ${date}. New pool: ${data.leavePool} days.`
+          `${targetUserId === user.userId ? "Your" : "Employee"} Sunday/holiday present recorded for ${bonusLabel} on ${date} (+${data.leavePoolBonus} to leave pool).${poolNote}`
         );
         if (targetUserId === user.userId && data.leavePool != null) {
           updateUser({ leavePool: data.leavePool });
+          window.dispatchEvent(new CustomEvent("leave-summary-refresh"));
         }
       }
       if (date === today) {
@@ -122,8 +125,8 @@ export default function AttendancePanel() {
         <h2>Team Attendance</h2>
         <p>
           {isAdmin
-            ? "Mark present for employees on any date — admins excluded (Sunday/holiday earns +1 leave day)"
-            : "Mark attendance for your team (today only; Sunday/holiday earns +1 leave day)"}
+            ? "Mark present for employees on any date — admins excluded (Sunday/holiday present adds +1 to effective leave pool)"
+            : "Mark attendance for your team (today only; Sunday/holiday present adds +1 to effective leave pool)"}
         </p>
       </div>
 

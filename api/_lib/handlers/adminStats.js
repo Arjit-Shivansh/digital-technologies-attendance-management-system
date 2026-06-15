@@ -11,6 +11,27 @@ import {
   countPresentOnWorkingDays,
   computeAttendanceRate,
 } from "../attendanceStats.js";
+import { countDaysBetween } from "../leaveDays.js";
+
+function isPresentStatus(status) {
+  return (status || "Present").toLowerCase() === "present";
+}
+
+function countApprovedLeaveDaysInRange(leaves, userId, from, to) {
+  let total = 0;
+  for (const l of leaves) {
+    if (l[1] !== userId) continue;
+    if ((l[4] || "").toLowerCase() !== "approved") continue;
+    const leaveFrom = l[2] || l.FromDate || l.fromDate || l[2];
+    const leaveTo = l[3] || l.ToDate || l.toDate || leaveFrom;
+    if (!leaveFrom) continue;
+    const overlapStart = leaveFrom > from ? leaveFrom : from;
+    const overlapEnd = leaveTo < to ? leaveTo : to;
+    if (overlapStart > overlapEnd) continue;
+    total += countDaysBetween(overlapStart, overlapEnd);
+  }
+  return total;
+}
 
 function isFresh(query) {
   return query.fresh === "1" || query.fresh === "true";
@@ -52,7 +73,7 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
     const d = a[2] || "";
     if (a[1] !== uid) return false;
     if (d < effFrom || d > effTo) return false;
-    return true;
+    return isPresentStatus(a[3]);
   });
 
   const presentDays = userAttendance.length;
@@ -89,15 +110,24 @@ function computeEmployeeStats(user, attendance, leaves, holidayRows, from, to) {
     workingDays,
   });
 
+  const approvedLeaveDays =
+    from && to
+      ? countApprovedLeaveDaysInRange(leaves, uid, effFrom, effTo)
+      : user.leaveApprovedDays;
+
+  const sundayHolidayPresentDaysInPeriod = userAttendance.filter((a) =>
+    isSundayOrHolidayPresentDay(a[2] || "", holidayRows)
+  ).length;
+
   return {
     presentDays,
-    approvedLeaveDays: user.leaveApprovedDays,
+    approvedLeaveDays,
     pendingLeaves,
     leavePendingDays: user.leavePendingDays,
     leavePool: effectivePool,
     baseLeavePool: user.baseLeavePool,
     leavePoolRemaining,
-    sundayHolidayPresentDays: user.sundayHolidayPresent,
+    sundayHolidayPresentDays: from && to ? sundayHolidayPresentDaysInPeriod : user.sundayHolidayPresent,
     sundayHolidayPresentLog,
     attendanceRate,
     statsPeriod: { from: effFrom, to: effTo, isDefault, cycleLabel },
@@ -145,6 +175,7 @@ export default async function handleAdminStats(req, res) {
 
     const response = {
       totalUsers: scopedUsers.filter((u) => u.role !== "Admin").length,
+      totalHolidays: (holidayRows || []).length,
       todayAttendance: periodAttendance,
       periodAttendance,
       pendingLeaves,

@@ -709,6 +709,29 @@ textarea.form-input {
   gap: 2px;
 }
 
+.analytics-month-select {
+  min-width: 160px;
+}
+
+.employee-analytics-calendar {
+  margin-top: 24px;
+}
+
+.employee-analytics-calendar .analytics-calendar-shell {
+  padding-top: 8px;
+}
+
+.analytics-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.calendar-cell.sun-holiday-present {
+  box-shadow: inset 0 0 0 2px #1a4fba;
+}
+
 .calendar-present-avatars {
   display: flex;
   flex-wrap: wrap;
@@ -1341,6 +1364,40 @@ textarea.form-input {
   overflow-x: auto;
 }
 
+.analytics-month-select {
+  min-width: 140px;
+}
+
+.employee-analytics-calendar {
+  margin-top: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.employee-analytics-calendar .card-header {
+  padding: 16px 20px 8px;
+}
+
+.analytics-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+
+.analytics-calendar-shell {
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.analytics-calendar-shell .calendar-cell {
+  min-height: 72px;
+}
+
+.calendar-cell.sun-holiday-present.present-day {
+  box-shadow: inset 0 0 0 2px #1a4fba;
+}
+
 /* ============================================================
    LEAVE INFO PANEL (EMPLOYEE)
    ============================================================ */
@@ -1784,6 +1841,10 @@ textarea.form-input {
 
   .admin-analytics-filters select,
   .admin-analytics-filters input {
+    width: 100%;
+  }
+
+  .analytics-month-select {
     width: 100%;
   }
 

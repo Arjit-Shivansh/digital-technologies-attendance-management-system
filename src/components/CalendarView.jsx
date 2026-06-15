@@ -2,42 +2,16 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useDashboardData } from "../context/DashboardDataContext";
 import { buildPresentByDate } from "../lib/employeeAvatar";
+import {
+  CALENDAR_DAY_NAMES,
+  CALENDAR_MONTHS,
+  buildMonthCells,
+  buildHolidayMap,
+  expandLeaveDates,
+} from "../lib/calendarEvents";
 import LeaveModal from "./LeaveModal";
 import LeaveInfoPanel from "./LeaveInfoPanel";
 import CalendarPresentAvatars from "./CalendarPresentAvatars";
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function getDaysInMonth(y, m) {
-  return new Date(y, m + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(y, m) {
-  return new Date(y, m, 1).getDay();
-}
-
-function expandLeaveDates(leaves) {
-  const map = {};
-  leaves.forEach((l) => {
-    const from = l.fromDate || l.FromDate;
-    const to = l.toDate || l.ToDate;
-    const status = l.status || l.Status;
-    if (!from) return;
-    const end = to || from;
-    const cur = new Date(`${from}T12:00:00`);
-    const endDate = new Date(`${end}T12:00:00`);
-    while (cur <= endDate) {
-      const key = cur.toISOString().slice(0, 10);
-      map[key] = status;
-      cur.setDate(cur.getDate() + 1);
-    }
-  });
-  return map;
-}
 
 export default function CalendarView() {
   const { user } = useAuth();
@@ -58,7 +32,7 @@ export default function CalendarView() {
 
   useEffect(() => {
     refetch(true);
-  }, []); // fresh fetch when calendar mounts (e.g. after Team Attendance marks)
+  }, []);
 
   const presentByDate = useMemo(
     () => (isAdmin ? buildPresentByDate(attendance, employees) : null),
@@ -69,35 +43,17 @@ export default function CalendarView() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveRefreshKey, setLeaveRefreshKey] = useState(0);
 
-  const daysInMonth = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfMonth(year, month);
-  const prevMonthDays = getDaysInMonth(year, month === 0 ? 11 : month - 1);
-
-  const cells = [];
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: prevMonthDays - i, otherMonth: true, date: null });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push({ day: d, otherMonth: false, date: dateStr });
-  }
-  const remaining = 7 - (cells.length % 7);
-  if (remaining < 7) {
-    for (let d = 1; d <= remaining; d++) {
-      cells.push({ day: d, otherMonth: true, date: null });
-    }
-  }
-
-  const holidayMap = {};
-  holidays.forEach((h) => {
-    holidayMap[h.date || h.Date] = h.holidayName || h.HolidayName;
-  });
-
-  const leaveMap = expandLeaveDates(leaves);
-  const attendanceSet = new Set(
-    attendance
-      .filter((a) => a.userId === user?.userId)
-      .map((a) => a.date || a.Date)
+  const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
+  const holidayMap = useMemo(() => buildHolidayMap(holidays), [holidays]);
+  const leaveMap = useMemo(() => expandLeaveDates(leaves), [leaves]);
+  const attendanceSet = useMemo(
+    () =>
+      new Set(
+        attendance
+          .filter((a) => a.userId === user?.userId)
+          .map((a) => a.date || a.Date)
+      ),
+    [attendance, user?.userId]
   );
 
   const isToday = (d) =>
@@ -132,7 +88,7 @@ export default function CalendarView() {
       <div className="calendar-shell">
         <div className="calendar-header-bar">
           <span className="month-label">
-            {MONTHS[month]} {year}
+            {CALENDAR_MONTHS[month].trim()} {year}
           </span>
           <div className="calendar-header-actions">
             <div className="nav-arrows">
@@ -156,7 +112,7 @@ export default function CalendarView() {
         </div>
 
         <div className="calendar-day-names">
-          {DAYS.map((d) => (
+          {CALENDAR_DAY_NAMES.map((d) => (
             <div key={d}>{d}</div>
           ))}
         </div>

@@ -119,15 +119,13 @@ All GET handlers accept `?fresh=1` (or `fresh=true`) to bypass the 15-second in-
 
 ### Admin stats (`GET /api/admin/stats`)
 
-- **Org view** (no `userId`): `totalUsers` (non-admin employees only; Admin role excluded), `periodAttendance`, `pendingLeaves`
-- **Employee view** (`userId` set): adds `selectedEmployee` and `employeeStats`:
-  - `presentDays`, `approvedLeaveDays` (col **H**), `leavePendingDays` (col **I**), `pendingLeaves` (request count), `leavePool` (G+J), `baseLeavePool`, `leavePoolRemaining`, `sundayHolidayPresentDays` (col **J**), `sundayHolidayPresentLog`, `attendanceRate`, `statsPeriod`, `attendanceRateMeta`
-  - `attendanceRate` — `weekday present days ÷ working days` from **April 1** of the active Apr–Mar cycle through today (weekends & company holidays excluded from the denominator; Sunday/holiday present tracked separately)
-  - `statsPeriod` — `{ from, to, isDefault, cycleLabel }`; defaults to **Apr 1 → today** within the current Apr–Mar cycle when `from`/`to` are omitted
-  - `sundayHolidayPresentLog`: table rows `{ date, type, label, reason, markedBy }` — **Holiday** type when Sunday and holiday overlap
-  - Per-employee queries bypass sheet cache so **Leave Pool** reflects sheet counters immediately
+- **Org view** (no `userId`): `totalUsers` (non-admin only), `totalHolidays` (rows in Holidays sheet — not month-scoped), `pendingLeaves` — no month filter in the UI
+- **Employee view** (`userId` + `from`/`to` = selected month): six stat cards for that month plus a read-only **employee calendar** (present, Sun/holiday present, leave, holiday chips per day)
+  - `presentDays`, `approvedLeaveDays` (clipped to month from Leaves tab), `pendingLeaves`, `leavePool` / `leavePoolRemaining` (sheet balance), `sundayHolidayPresentDays` (in month), `attendanceRate` (weekday present ÷ working days in month)
+  - Replaces the old Sunday/holiday present **table** with the calendar in Admin → Analytics
+- Analytics **employee dropdown** lists non-admin users only. **Month dropdown** appears only when an employee is selected (months in the active Apr–Mar attendance cycle: April through the following March).
 
-Filters: `role`, `managerId`, `from`, `to` narrow the user set and date range. The Analytics **employee dropdown** lists non-admin users only (Admin role accounts are excluded).
+Filters: `role`, `managerId`, `from`, `to` (month bounds when employee selected). Per-employee queries use `fresh=1`.
 
 ---
 
@@ -175,7 +173,8 @@ For **Admin** only, each calendar day shows one **colored circle per non-admin e
 - **Overflow** — mobile shows up to **4** circles plus a **+N** badge when more employees are present; desktop shows all.
 - **Admin users** are excluded from avatars. **Holiday** chips are unchanged.
 
-Helpers live in `src/lib/employeeAvatar.js` (`getDisplayInitials`, `getEmployeeColor`, `buildPresentByDate`). Smoke test: `node scripts/smoke-employee-avatar.mjs`.
+Helpers live in `src/lib/employeeAvatar.js` (`getDisplayInitials`, `getEmployeeColor`, `buildPresentByDate`). Smoke test: `node scripts/smoke-employee-avatar.mjs
+scripts/smoke-calendar-events.mjs`.
 
 ### Calendar present-day styling
 
@@ -226,6 +225,7 @@ src/
 scripts/smoke-sheets.mjs
 scripts/smoke-user-sheet-stats.mjs
 scripts/smoke-employee-avatar.mjs
+scripts/smoke-calendar-events.mjs
 scripts/reset-cycle.mjs
 ```
 
@@ -237,9 +237,10 @@ scripts/reset-cycle.mjs
 node scripts/smoke-sheets.mjs
 node scripts/smoke-user-sheet-stats.mjs
 node scripts/smoke-employee-avatar.mjs
+scripts/smoke-calendar-events.mjs
 ```
 
-`smoke-employee-avatar.mjs` tests initials rules, stable colors, and `buildPresentByDate` grouping (no Google credentials). `smoke-user-sheet-stats.mjs` tests increment/decrement math and Users column index mapping (no Google credentials). `smoke-sheets.mjs` tests cache invalidation and `findRow(rows)` without credentials. With `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_SPREADSHEET_ID` set, `smoke-sheets.mjs` also verifies `readSheetsBatch` row counts and cache/fresh behavior.
+`smoke-calendar-events.mjs` tests shared calendar helpers (`buildMonthCells`, `expandLeaveDates`, Sun/holiday present detection). `smoke-employee-avatar.mjs` tests initials rules, stable colors, and `buildPresentByDate` grouping (no Google credentials). `smoke-user-sheet-stats.mjs` tests increment/decrement math and Users column index mapping (no Google credentials). `smoke-sheets.mjs` tests cache invalidation and `findRow(rows)` without credentials. With `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_SPREADSHEET_ID` set, `smoke-sheets.mjs` also verifies `readSheetsBatch` row counts and cache/fresh behavior.
 
 **Apr–Mar cycle reset (production sheet):**
 

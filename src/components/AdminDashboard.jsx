@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
+import { buildAprMarCycleMonthOptions } from "../lib/calendarEvents";
+import EmployeeAnalyticsCalendar from "./EmployeeAnalyticsCalendar";
 import {
   AnalyticsStatsSkeleton,
   AccessTabSkeleton,
@@ -52,20 +54,31 @@ function useDebounce(value, delay = 300) {
   return debounced;
 }
 
+function parseMonthKey(key) {
+  const [year, month] = key.split("-").map(Number);
+  return { year, month };
+}
+
 function AnalyticsTab() {
+  const monthOptions = useMemo(() => buildAprMarCycleMonthOptions(), []);
+  const defaultMonthKey = useMemo(() => {
+    const today = new Date();
+    const key = `${today.getFullYear()}-${today.getMonth()}`;
+    return monthOptions.find((o) => o.value === key)?.value ?? monthOptions.at(-1)?.value ?? "";
+  }, [monthOptions]);
+
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
   const [filterUserId, setFilterUserId] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [filterManager, setFilterManager] = useState("");
+  const [selectedMonthKey, setSelectedMonthKey] = useState(defaultMonthKey);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const debouncedUserId = useDebounce(filterUserId);
   const debouncedRole = useDebounce(filterRole);
   const debouncedManager = useDebounce(filterManager);
-  const debouncedFrom = useDebounce(fromDate);
-  const debouncedTo = useDebounce(toDate);
+  const debouncedMonthKey = useDebounce(selectedMonthKey);
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -74,21 +87,30 @@ function AnalyticsTab() {
       .catch(() => setUsers([]));
   }, []);
 
-  const fetchStats = useCallback((fresh = false) => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (debouncedFrom) params.set("from", debouncedFrom);
-    if (debouncedTo) params.set("to", debouncedTo);
-    if (debouncedUserId) params.set("userId", debouncedUserId);
-    if (debouncedRole) params.set("role", debouncedRole);
-    if (debouncedManager) params.set("managerId", debouncedManager);
-    if (fresh || debouncedUserId) params.set("fresh", "1");
-    return fetch(`/api/admin/stats?${params.toString()}`)
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => setStats({}))
-      .finally(() => setLoading(false));
-  }, [debouncedFrom, debouncedTo, debouncedUserId, debouncedRole, debouncedManager]);
+  const fetchStats = useCallback(
+    (fresh = false) => {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (debouncedUserId) {
+        params.set("userId", debouncedUserId);
+        const { year, month } = parseMonthKey(debouncedMonthKey || defaultMonthKey);
+        const from = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const to = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        params.set("from", from);
+        params.set("to", to);
+      }
+      if (debouncedRole) params.set("role", debouncedRole);
+      if (debouncedManager) params.set("managerId", debouncedManager);
+      if (fresh || debouncedUserId) params.set("fresh", "1");
+      return fetch(`/api/admin/stats?${params.toString()}`)
+        .then((r) => r.json())
+        .then(setStats)
+        .catch(() => setStats({}))
+        .finally(() => setLoading(false));
+    },
+    [debouncedMonthKey, debouncedUserId, debouncedRole, debouncedManager, defaultMonthKey]
+  );
 
   useEffect(() => {
     fetchStats(false);
@@ -98,6 +120,9 @@ function AnalyticsTab() {
   const uniqueRoles = [...new Set(users.map((u) => u.role || u.Role).filter(Boolean))];
   const uniqueManagers = [...new Set(users.map((u) => u.managerId || u.ManagerID || "").filter(Boolean))];
   const employeeView = Boolean(debouncedUserId && stats?.employeeStats);
+  const selectedMonth = parseMonthKey(debouncedMonthKey || defaultMonthKey);
+  const selectedMonthLabel =
+    monthOptions.find((o) => o.value === (debouncedMonthKey || defaultMonthKey))?.label ?? "";
 
   return (
     <>
@@ -113,6 +138,19 @@ function AnalyticsTab() {
             );
           })}
         </select>
+        {filterUserId && (
+          <select
+            className="analytics-month-select"
+            value={selectedMonthKey}
+            onChange={(e) => setSelectedMonthKey(e.target.value)}
+          >
+            {monthOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        )}
         <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
           <option value="">All Roles</option>
           {uniqueRoles.map((r) => (
@@ -125,11 +163,14 @@ function AnalyticsTab() {
             <option key={m} value={m}>{m}</option>
           ))}
         </select>
-        <label style={{ fontWeight: 600, fontSize: "0.8125rem" }}>From:</label>
-        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <label style={{ fontWeight: 600, fontSize: "0.8125rem" }}>To:</label>
-        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        <button type="button" className="btn btn-secondary" onClick={() => fetchStats(true)}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            setCalendarRefreshKey((k) => k + 1);
+            fetchStats(true);
+          }}
+        >
           ↻ Refresh
         </button>
       </div>
@@ -141,22 +182,19 @@ function AnalyticsTab() {
           {stats?.selectedEmployee && (
             <p style={{ marginBottom: 12, fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
               Showing stats for <strong>{stats.selectedEmployee.name}</strong>
+              {selectedMonthLabel ? ` · ${selectedMonthLabel}` : ""}
             </p>
           )}
           <div className="stats-grid stats-grid-employee">
             <div className="stat-card">
               <span className="stat-label">Present Days</span>
               <span className="stat-value">{stats.employeeStats.presentDays}</span>
-              <span className="stat-sub stat-sub-spacer" aria-hidden="true">
-                &nbsp;
-              </span>
+              <span className="stat-sub">{selectedMonthLabel || "selected month"}</span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Approved Leave Days</span>
               <span className="stat-value">{stats.employeeStats.approvedLeaveDays}</span>
-              <span className="stat-sub stat-sub-spacer" aria-hidden="true">
-                &nbsp;
-              </span>
+              <span className="stat-sub">{selectedMonthLabel || "selected month"}</span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Pending Leaves</span>
@@ -174,70 +212,24 @@ function AnalyticsTab() {
             </div>
             <div className="stat-card">
               <span className="stat-label">Sunday & Holiday Present</span>
-              <span className="stat-value">{stats.employeeStats.sundayHolidayPresentDays ?? stats.employeeStats.weekendPresentDays ?? 0}</span>
-              <span className="stat-sub">each adds +1 to effective leave pool (col J)</span>
+              <span className="stat-value">{stats.employeeStats.sundayHolidayPresentDays ?? 0}</span>
+              <span className="stat-sub">{selectedMonthLabel || "selected month"}</span>
             </div>
             <div className="stat-card">
               <span className="stat-label">Attendance Rate</span>
               <span className="stat-value">{stats.employeeStats.attendanceRate}%</span>
               <span className="stat-sub">
-                {stats.employeeStats.statsPeriod
-                  ? `${stats.employeeStats.statsPeriod.from} → ${stats.employeeStats.statsPeriod.to}${
-                      stats.employeeStats.statsPeriod.cycleLabel
-                        ? ` (${stats.employeeStats.statsPeriod.cycleLabel})`
-                        : ""
-                    } · present ÷ working days`
-                  : "present days ÷ working days (Apr–Mar cycle)"}
+                {selectedMonthLabel || "selected month"} · present ÷ working days
               </span>
             </div>
           </div>
 
-          <div className="card analytics-detail-card">
-            <div className="card-header">Sunday & Holiday Present Days</div>
-            <p className="analytics-detail-note">
-              Each row earned +1 toward Sunday/holiday present (effective pool = base + J).
-            </p>
-            {(stats.employeeStats.sundayHolidayPresentLog || []).length === 0 ? (
-              <div className="empty-state" style={{ padding: "24px 16px" }}>
-                <p>No Sunday or holiday present days in this period.</p>
-              </div>
-            ) : (
-              <div className="analytics-table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Detail</th>
-                      <th>Reason</th>
-                      <th>Marked By</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.employeeStats.sundayHolidayPresentLog.map((row) => (
-                      <tr key={row.date}>
-                        <td>{row.date}</td>
-                        <td>
-                          <span
-                            className={`event-chip ${
-                              row.type === "holiday" ? "holiday" : "weekend-work"
-                            }`}
-                          >
-                            {row.type === "holiday" ? "Holiday" : "Sunday"}
-                          </span>
-                        </td>
-                        <td>{row.label}</td>
-                        <td style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)" }}>
-                          {row.reason || "—"}
-                        </td>
-                        <td>{row.markedBy || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <EmployeeAnalyticsCalendar
+            userId={debouncedUserId}
+            year={selectedMonth.year}
+            month={selectedMonth.month}
+            refreshKey={calendarRefreshKey}
+          />
         </>
       ) : (
         <div className="stats-grid">
@@ -249,9 +241,9 @@ function AnalyticsTab() {
             </span>
           </div>
           <div className="stat-card">
-            <span className="stat-label">Attendance (Period)</span>
-            <span className="stat-value">{stats?.periodAttendance || stats?.todayAttendance || 0}</span>
-            <span className="stat-sub">in selected range</span>
+            <span className="stat-label">Holiday Count</span>
+            <span className="stat-value">{stats?.totalHolidays ?? 0}</span>
+            <span className="stat-sub">company holidays in sheet</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">Pending Leaves</span>
